@@ -777,6 +777,54 @@ else:
             st.metric("NPV Margin",
                       f"${totals['npv_net_margin']/1e6:.1f} M",
                       help=f"Discount rate: {totals['discount_rate_used']*100:.1f}%")
+                st.subheader("📈 Daily Profiles by Contract Year")
+
+        # Available modeled contract years
+        profile_year_options = [yr_res['calendar_year'] for yr_res in forecast['annual_results']]
+
+        # Default to first contract year
+        selected_profile_year = st.selectbox(
+            "Select contract year for daily profile charts",
+            options=profile_year_options,
+            index=0,
+            key="multiyear_profile_year",
+            help="Choose which modeled contract year to visualize in daily summer/winter charts."
+        )
+
+        # Grab the result dict for the selected year
+        selected_year_result = next(
+            yr_res for yr_res in forecast['annual_results']
+            if yr_res['calendar_year'] == selected_profile_year
+        )
+
+        st.caption(
+            f"Showing hourly dispatch for contract year {selected_profile_year} "
+            f"(degradation factor: {selected_year_result['degradation_factor']*100:.2f}% of year-0 TMY output)"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**Summer Day (July 15)**")
+            fig_summer_my = plot_daily_profile(
+                selected_year_result['model'],
+                day=SUMMER_DAY,
+                block_mw=selected_year_result['block_mw'],
+                strike_price=min_strike_my,
+                title_suffix=f"- {selected_profile_year} Summer (July 15)",
+            )
+            st.pyplot(fig_summer_my)
+
+        with col2:
+            st.markdown("**Winter Day (January 15)**")
+            fig_winter_my = plot_daily_profile(
+                selected_year_result['model'],
+                day=WINTER_DAY,
+                block_mw=selected_year_result['block_mw'],
+                strike_price=min_strike_my,
+                title_suffix=f"- {selected_profile_year} Winter (January 15)",
+            )
+            st.pyplot(fig_winter_my)  
 
         st.subheader("📈 Annual Margin vs. Escalated Target")
         st.pyplot(plot_annual_margin_vs_target(summary_df, min_strike_my))
