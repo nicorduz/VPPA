@@ -11,7 +11,7 @@ Default parameters and constants
 DATA_DIR = "./data"
 
 # Input file names (will be joined with DATA_DIR)
-SOLAR_FILE = "Lavender_PVsyst_P90.CSV"
+SOLAR_FILE = "Lavender_PVsyst_P90.csv"
 HUB_PRICE_FILE = "ERCOT_LZ_NORTH_DA.csv"
 LAVENDER_NODE_FILE = "LAVENDER_BENHUR_DA.csv"
 FAIRWAY_NODE_FILE = "FAIRWAY_FAIRFIELD_DA.csv"
