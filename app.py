@@ -777,7 +777,8 @@ else:
             st.metric("NPV Margin",
                       f"${totals['npv_net_margin']/1e6:.1f} M",
                       help=f"Discount rate: {totals['discount_rate_used']*100:.1f}%")
-                st.subheader("📈 Daily Profiles by Contract Year")
+        
+        st.subheader("📈 Daily Profiles by Contract Year")
 
         # Available modeled contract years
         profile_year_options = [yr_res['calendar_year'] for yr_res in forecast['annual_results']]
