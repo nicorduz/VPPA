@@ -1,0 +1,16 @@
+# Lavender + Fairway VPPA Analyzer
+# Python dependencies
+
+# Core
+streamlit>=1.28.0
+pandas>=1.5.0
+numpy>=1.23.0
+
+# Visualization
+matplotlib>=3.6.0
+
+# Excel export
+openpyxl>=3.0.10
+
+# Optional: for better performance with large datasets
+# pyarrow>=10.0.0
