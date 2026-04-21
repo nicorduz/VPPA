@@ -33,7 +33,7 @@ from config import (
     CRITERION_TOTAL_SUM, CRITERION_NPV, CRITERION_WORST_YEAR,
     MULTIYEAR_STRIKE_MIN, MULTIYEAR_STRIKE_MAX, MULTIYEAR_STRIKE_STEP,
 )
-from vpp_data_loader import load_all_data, get_available_years, validate_data
+from vpp_data_loader import load_all_data, get_available_years, validate_data, load_solar_tmy
 from analysis_engine import (
     run_dispatch_model, calculate_min_strike, calculate_margin_at_strike,
     calculate_vppa_revenue_at_strike, run_sensitivity_analysis,
@@ -597,7 +597,7 @@ else:
         with st.spinner(f"Running dispatch for {contract_years_n} years..."):
             try:
                 # Load TMY solar (any year works, solar file is TMY-based)
-                solar_tmy, _, _, _ = load_all_data(available_years[0])
+                solar_tmy = load_solar_tmy()
 
                 # Price loader with cache
                 price_cache = {}
