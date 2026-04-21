@@ -1,4 +1,3 @@
-
 """
 VPPA Strike Forecast Analyzer - Data Loader
 """
@@ -88,7 +87,8 @@ def build_degraded_solar_profile(year_index: int, annual_degradation_rate: float
     base['solar_degradation_factor'] = degradation_factor
     base['contract_year_index'] = year_index + 1
     return base
-    
+
+
 @st.cache_data
 def read_csv_with_fallback(filepath, **kwargs):
     encodings = ['utf-8-sig', 'utf-8', 'cp1252', 'latin-1']
@@ -102,6 +102,7 @@ def read_csv_with_fallback(filepath, **kwargs):
             continue
 
     raise last_error
+
 
 @st.cache_data
 def load_price_data(filename: str, year: int):
@@ -207,26 +208,78 @@ def validate_data(solar_df, hub_prices, lavender_prices, fairway_prices):
     return results
 
 
-@st.cache_data
+def _file_signature(filepath: str) -> tuple:
+    """
+    Return (size, mtime) for a file. Used as a cache key ingredient so that
+    updating the CSV automatically busts the cache.
+    """
+    try:
+        stat = os.stat(filepath)
+        return (stat.st_size, stat.st_mtime)
+    except OSError:
+        return (0, 0.0)
+
+
+@st.cache_data(show_spinner=False)
+def _discover_years_from_file(filepath: str, signature: tuple):
+    """
+    Read a price CSV and return the sorted list of unique years present.
+
+    `signature` (file size + mtime) is part of the cache key, so editing the
+    file automatically busts the cache.
+    """
+    df = read_csv_with_fallback(filepath)
+    df.columns = df.columns.str.strip().str.upper()
+
+    # Prefer DATE_YEAR explicitly; it is unambiguous.
+    if 'DATE_YEAR' in df.columns:
+        years = pd.to_numeric(df['DATE_YEAR'], errors='coerce').dropna().unique().astype(int)
+        if len(years) > 0:
+            return sorted(years.tolist())
+
+    # Next, any column that *looks* like a pure year column (not day/month of year).
+    for col in df.columns:
+        if 'YEAR' in col and 'DAY' not in col and 'MONTH' not in col and 'WEEK' not in col:
+            try:
+                years = pd.to_numeric(df[col], errors='coerce').dropna().unique().astype(int)
+                # Sanity check: all values must be plausible calendar years
+                if len(years) > 0 and years.min() > 1900 and years.max() < 2200:
+                    return sorted(years.tolist())
+            except Exception:
+                continue
+
+    # Finally, parse a datetime column.
+    for col in df.columns:
+        if 'DATE' in col or 'TIME' in col:
+            dates = pd.to_datetime(df[col], errors='coerce')
+            years = dates.dt.year.dropna().unique().astype(int)
+            if len(years) > 0:
+                return sorted(years.tolist())
+
+    return []
+
+
 def get_available_years():
+    """
+    Return the sorted list of years available in the hub price CSV.
+
+    Cache-safe: uses the file's (size, mtime) as a cache key ingredient, so
+    replacing the CSV on disk automatically invalidates the cached result
+    without needing to restart the app or clear the Streamlit cache manually.
+    """
     filepath = os.path.join(DATA_DIR, HUB_PRICE_FILE)
+    signature = _file_signature(filepath)
 
     try:
-        df = read_csv_with_fallback(filepath)
-        df.columns = df.columns.str.strip().str.upper()
+        years = _discover_years_from_file(filepath, signature)
+        if years:
+            return years
+    except Exception as e:
+        st.warning(f'Could not discover years from {HUB_PRICE_FILE}: {e}')
 
-        for col in df.columns:
-            if 'YEAR' in col:
-                return sorted(df[col].dropna().unique().astype(int).tolist())
-
-        for col in df.columns:
-            if 'DATE' in col or 'TIME' in col:
-                dates = pd.to_datetime(df[col], errors='coerce')
-                return sorted(dates.dt.year.dropna().unique().astype(int).tolist())
-    except Exception:
-        pass
-
+    # Last-resort fallback only if everything above failed.
     return [2022, 2023, 2024, 2025]
+
 
 @st.cache_data
 def load_all_data(year: int):
