@@ -827,6 +827,68 @@ else:
             )
             st.pyplot(fig_winter_my)  
 
+        # ================================================================
+        # LIFETIME AGGREGATE CHARTS (all contract years combined)
+        # ================================================================
+        lifetime_model = pd.concat(
+            [
+                yr_res['model'].assign(calendar_year=yr_res['calendar_year'])
+                for yr_res in forecast['annual_results']
+            ],
+            ignore_index=True
+        )
+
+        total_block_volume = summary_df['block_volume'].sum()
+        total_solar_mwh = summary_df['solar_mwh'].sum()
+        total_bess_mwh = summary_df['bess_mwh_to_block'].sum()
+        total_merchant_mwh = summary_df['merchant_mwh'].sum()
+
+        # Weighted basis so the existing waterfall math remains valid at lifetime level
+        lifetime_avg_basis = (
+            np.average(summary_df['avg_lavender_basis'], weights=summary_df['block_volume'])
+            if total_block_volume > 0 else 0.0
+        )
+
+        lifetime_results = {
+            'block_volume': total_block_volume,
+            'solar_mwh': total_solar_mwh,
+            'bess_mwh': total_bess_mwh,
+            'merchant_mwh': total_merchant_mwh,
+            'solar_pct': (total_solar_mwh / total_block_volume * 100) if total_block_volume > 0 else 0.0,
+            'bess_pct': (total_bess_mwh / total_block_volume * 100) if total_block_volume > 0 else 0.0,
+            'merchant_pct': (total_merchant_mwh / total_block_volume * 100) if total_block_volume > 0 else 0.0,
+            'avg_lavender_basis': lifetime_avg_basis,
+            'merchant_sales_revenue': totals['total_merchant_revenue'],
+            'market_cost': totals['total_market_cost'],
+            'bess_charge_cost': totals['total_bess_cost'],
+            'total_costs': totals['total_market_cost'] + totals['total_bess_cost'],
+        }
+
+        st.subheader("💰 Lifetime Economics Summary")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig_lifetime_waterfall = plot_economics_waterfall(lifetime_results, min_strike_my)
+            st.pyplot(fig_lifetime_waterfall)
+
+        with col2:
+            fig_lifetime_volume = plot_volume_breakdown(lifetime_results)
+            st.pyplot(fig_lifetime_volume)
+
+        with st.expander("📊 Additional Charts"):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**Lifetime Monthly Volume Breakdown**")
+                fig_lifetime_monthly = plot_monthly_breakdown(lifetime_model)
+                st.pyplot(fig_lifetime_monthly)
+
+            with col2:
+                st.markdown("**Lifetime Avg On-Peak Price Comparison**")
+                fig_lifetime_prices = plot_price_comparison(lifetime_model)
+                st.pyplot(fig_lifetime_prices)
+
         st.subheader("📈 Annual Margin vs. Escalated Target")
         st.pyplot(plot_annual_margin_vs_target(summary_df, min_strike_my))
 
