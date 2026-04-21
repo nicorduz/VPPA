@@ -22,24 +22,54 @@ from config import (
 @st.cache_data
 def load_solar_tmy():
     """
-    Load the base 8760 TMY/PVsyst profile in MW.
+    Load the base 8760 TMY/PVsyst profile in MW from the PVsyst CSV.
+    Tries multiple encodings and delimiters, then extracts E_Grid robustly.
     """
+
     filepath = os.path.join(DATA_DIR, SOLAR_FILE)
 
-    try:
-        df = pd.read_csv(filepath, sep=';', encoding='latin-1')
-    except Exception:
-        df = None
+    # Try multiple encodings / delimiters first
+    encodings = ['latin-1', 'cp1252', 'utf-8-sig', 'utf-8']
+    separators = [';', ',', '\t', None]
+
+    df = None
+    for enc in encodings:
+        for sep in separators:
+            try:
+                if sep is None:
+                    trial = pd.read_csv(filepath, encoding=enc, sep=None, engine='python')
+                else:
+                    trial = pd.read_csv(filepath, encoding=enc, sep=sep)
+                if trial is not None and len(trial.columns) > 1:
+                    df = trial
+                    break
+            except Exception:
+                continue
+        if df is not None:
+            break
 
     energy_values = None
 
+    # If tabular read worked, find E_Grid-like column
     if df is not None:
         df.columns = [str(c).strip() for c in df.columns]
+
+        # exact / close match first
         for col in df.columns:
-            if 'E_Grid' in str(col):
+            col_clean = str(col).strip().replace('"', '')
+            if col_clean == 'E_Grid' or 'E_Grid' in col_clean:
                 energy_values = pd.to_numeric(df[col], errors='coerce')
                 break
 
+        # fallback to last plausible energy column
+        if energy_values is None:
+            for col in df.columns[::-1]:
+                c = str(col).lower()
+                if 'grid' in c or 'egrid' in c or 'energy' in c:
+                    energy_values = pd.to_numeric(df[col], errors='coerce')
+                    break
+
+    # Last-resort line parser
     if energy_values is None:
         vals = []
         with open(filepath, 'r', encoding='latin-1', errors='ignore') as f:
@@ -47,21 +77,31 @@ def load_solar_tmy():
                 line = line.strip()
                 if not line or 'E_Grid' in line:
                     continue
-                parts = line.split()
+
+                # try semicolon split first
+                if ';' in line:
+                    parts = [p.strip() for p in line.split(';') if p.strip() != '']
+                else:
+                    parts = line.split()
+
                 try:
                     vals.append(float(parts[-1]))
                 except Exception:
                     continue
+
         energy_values = pd.Series(vals, dtype='float64')
 
-    solar_kw = energy_values.fillna(0.0).to_numpy(dtype=float)
+    solar_kw = pd.to_numeric(energy_values, errors='coerce').fillna(0.0).to_numpy(dtype=float)
 
+    # Keep exactly 8760 hours
     if len(solar_kw) < 8760:
         solar_kw = np.concatenate([solar_kw, np.zeros(8760 - len(solar_kw))])
     else:
         solar_kw = solar_kw[:8760]
 
-    solar_mw = np.minimum(solar_kw / 1000.0, LAVENDER_CAPACITY_AC)
+    # Convert to MW and clip to physical range
+    solar_mw = solar_kw / 1000.0
+    solar_mw = np.clip(solar_mw, 0.0, LAVENDER_CAPACITY_AC)
 
     result = pd.DataFrame({
         'hour_of_year': range(8760),
