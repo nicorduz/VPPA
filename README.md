@@ -1,6 +1,6 @@
-# Lavender + Fairway VPPA Analyzer
+# VPPA Analyzer
 
-Interactive Streamlit tool to find the minimum VPPA strike price for a Solar + BESS portfolio. Built for the Lavender Solar (180 MWac, ERCOT) and Fairway BESS (120 MW / 240–480 MWh) projects under a flat-strike financial VPPA structure.
+Interactive tool to find the minimum VPPA strike price for a Solar + BESS portfolio. Built for the Lavender Solar (180 MWac, ERCOT) and Fairway BESS (120 MW / 240–480 MWh) projects under a flat-strike financial VPPA structure.
 
 ## Features
 
@@ -21,33 +21,6 @@ Solves for a single flat strike price that meets lifetime revenue requirements a
 The solver is closed-form. Annual margin is linear in strike, so each criterion reduces to a single equation. No numerical search runs.
 
 Forecast mode handles solar degradation year-over-year, target escalation (inflation), and price extrapolation for years beyond the available forecast data.
-
-## Installation
-
-Clone the repository and install dependencies:
-
-```bash
-git clone <your-repo-url>
-cd vppa-analyzer
-pip install -r requirements.txt
-```
-
-Place the required data files in a `data/` folder at the project root (see Data Requirements below).
-
-Run the app locally:
-
-```bash
-streamlit run app.py
-```
-
-## Deployment to Streamlit Cloud
-
-1. Push this repository to GitHub, including the `data/` folder with all CSV files committed
-2. Go to https://share.streamlit.io and connect your GitHub account
-3. Click **New app**, select the repository, set the main file to `app.py`, and deploy
-4. If the `data/` folder exceeds GitHub's 100 MB file limit, either use Git LFS or host the CSVs externally and update `data_loader.py` to fetch them
-
-Streamlit Cloud will install dependencies from `requirements.txt` automatically on first boot.
 
 ## Project Structure
 
