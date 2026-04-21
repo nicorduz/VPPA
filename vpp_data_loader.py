@@ -88,13 +88,26 @@ def build_degraded_solar_profile(year_index: int, annual_degradation_rate: float
     base['solar_degradation_factor'] = degradation_factor
     base['contract_year_index'] = year_index + 1
     return base
+    
+@st.cache_data
+def read_csv_with_fallback(filepath, **kwargs):
+    encodings = ['utf-8-sig', 'utf-8', 'cp1252', 'latin-1']
+    last_error = None
 
+    for enc in encodings:
+        try:
+            return pd.read_csv(filepath, encoding=enc, **kwargs)
+        except UnicodeDecodeError as e:
+            last_error = e
+            continue
+
+    raise last_error
 
 @st.cache_data
 def load_price_data(filename: str, year: int):
     filepath = os.path.join(DATA_DIR, filename)
 
-    df = pd.read_csv(filepath, encoding='utf-8-sig')
+    df = read_csv_with_fallback(filepath)
     df.columns = df.columns.str.strip().str.upper()
 
     price_col = 'ENERGY_PRICE'
@@ -199,7 +212,7 @@ def get_available_years():
     filepath = os.path.join(DATA_DIR, HUB_PRICE_FILE)
 
     try:
-        df = pd.read_csv(filepath)
+        df = read_csv_with_fallback(filepath)
         df.columns = df.columns.str.strip().str.upper()
 
         for col in df.columns:
